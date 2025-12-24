@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE chartFormat SYSTEM "chartformat.dtd">
+<chartFormat graphTitle="" legendFontColourB="0" legendFontColourG="0" legendFontColourR="0" legendFontName="SansSerif" legendFontSize="11" legendFontStyle="0" legendPosition="right" legendVisible="true" titleFontColourB="0" titleFontColourG="0" titleFontColourR="0" titleFontName="SansSerif" titleFontSize="14" titleFontStyle="0" versionString="4.9">
+    <layout/>
+    <axis autoscale="true" heading="guess" headingFontColourB="0" headingFontColourG="0" headingFontColourR="0" headingFontName="SansSerif" headingFontSize="12" headingFontStyle="0" logBase="10.0" logStyle="1" logarithmic="false" majorColourB="204" majorColourG="204" majorColourR="204" majorGridInterval="0.2" maxValue="1.0" maximumPower="1.0" minValue="0.0" minimumPower="0.0" numberFontColourB="0" numberFontColourG="0" numberFontColourR="0" numberFontName="SansSerif" numberFontSize="12" numberFontStyle="0" showMajor="true"/>
+    <axis autoscale="true" heading="Probability" headingFontColourB="0" headingFontColourG="0" headingFontColourR="0" headingFontName="SansSerif" headingFontSize="12" headingFontStyle="0" logBase="10.0" logStyle="1" logarithmic="false" majorColourB="204" majorColourG="204" majorColourR="204" majorGridInterval="0.2" maxValue="1.0" maximumPower="1.0" minValue="0.0" minimumPower="0.0" numberFontColourB="0" numberFontColourG="0" numberFontColourR="0" numberFontName="SansSerif" numberFontSize="12" numberFontStyle="0" showMajor="true"/>
+    <graph lineStyle="normal" lineWidth="1.0" seriesColourB="255" seriesColourG="0" seriesColourR="0" seriesHeading="Number of url requests = 2" seriesShape="circle" showLines="true" showPoints="true">
+        <point x="10.0" y="0.039871309674521745"/>
+        <point x="20.0" y="0.07723871459494355"/>
+        <point x="30.0" y="0.1123107975562007"/>
+        <point x="40.0" y="0.14527472979893094"/>
+        <point x="50.0" y="0.17629886370591222"/>
+        <point x="60.0" y="0.20553496582495653"/>
+        <point x="70.0" y="0.2331201461976915"/>
+        <point x="80.0" y="0.2591785303487604"/>
+        <point x="90.0" y="0.28382271247851143"/>
+        <point x="100.0" y="0.3071550220165111"/>
+        <point x="110.0" y="0.3292686304694426"/>
+        <point x="120.0" y="0.3502485212047128"/>
+        <point x="130.0" y="0.370172341249641"/>
+        <point x="140.0" y="0.38911115125368123"/>
+        <point x="150.0" y="0.407130087309759"/>
+        <point x="160.0" y="0.4242889463072708"/>
+        <point x="170.0" y="0.4406427047367058"/>
+        <point x="180.0" y="0.4562419795035259"/>
+        <point x="190.0" y="0.47113343801497376"/>
+        <point x="200.0" y="0.48536016386527364"/>
+        <point x="210.0" y="0.49896198351151233"/>
+        <point x="220.0" y="0.511975758654394"/>
+        <point x="230.0" y="0.5244356483668509"/>
+        <point x="240.0" y="0.5363733445088458"/>
+        <point x="250.0" y="0.5478182834984062"/>
+        <point x="260.0" y="0.5587978371269181"/>
+        <point x="270.0" y="0.5693374847324516"/>
+        <point x="280.0" y="0.5794609688363973"/>
+        <point x="290.0" y="0.5891904359795953"/>
+        <point x="300.0" y="0.5985465643882919"/>
+    </graph>
+    <graph lineStyle="normal" lineWidth="1.0" seriesColourB="0" seriesColourG="127" seriesColourR="0" seriesHeading="Number of url requests 6" seriesShape="square" showLines="true" showPoints="true">
+        <point x="10.0" y="0.11490814928974329"/>
+        <point x="20.0" y="0.21427947888146373"/>
+        <point x="30.0" y="0.30050790334499367"/>
+        <point x="40.0" y="0.37557593447717175"/>
+        <point x="50.0" y="0.44113231907947537"/>
+        <point x="60.0" y="0.4985537779202164"/>
+        <point x="70.0" y="0.548994345846842"/>
+        <point x="80.0" y="0.5934249910200697"/>
+        <point x="90.0" y="0.6326655739466474"/>
+        <point x="100.0" y="0.6674107405480898"/>
+        <point x="110.0" y="0.6982509891113864"/>
+        <point x="120.0" y="0.7256898802053049"/>
+        <point x="130.0" y="0.7501581505954261"/>
+        <point x="140.0" y="0.7720253316488888"/>
+        <point x="150.0" y="0.7916093481140437"/>
+        <point x="160.0" y="0.8091844761054785"/>
+        <point x="170.0" y="0.8249879629250183"/>
+        <point x="180.0" y="0.8392255517930508"/>
+        <point x="190.0" y="0.8520761070268348"/>
+        <point x="200.0" y="0.8636954980173218"/>
+        <point x="210.0" y="0.8742198702995827"/>
+        <point x="220.0" y="0.8837684083479499"/>
+        <point x="230.0" y="0.8924456754575273"/>
+        <point x="240.0" y="0.9003436007662525"/>
+        <point x="250.0" y="0.9075431709927955"/>
+        <point x="260.0" y="0.9141158744103526"/>
+        <point x="270.0" y="0.9201249362749158"/>
+        <point x="280.0" y="0.9256263784521302"/>
+        <point x="290.0" y="0.9306699302004149"/>
+        <point x="300.0" y="0.9352998128667617"/>
+    </graph>
+</chartFormat>
