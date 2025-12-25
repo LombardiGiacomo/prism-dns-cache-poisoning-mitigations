@@ -7,8 +7,8 @@ const number_of_port_ids;			// number_of_port_ids = 1, port id is fixed. number_
 const guess;					// Rate at which the AS tries to guess the response. Higher guess rate more guesses arrive at the CS.
 const double requests_rate = 1;			// Rate at which the IM sends requests to the CS. It is always set to 1, does not affect the results.
 const other_legitimate_requests_rate;		// Rate at which requests from legitimate users arrive at the DS. Higher other_legitimate_requests_rate refers to more work load for the DS. Therefore, more guesses can be done by the AS.
-const threshold = 1000;				// Number of maximum packets before mitigation starts
-
+const threshold = 5;				// Number of maximum packets before mitigation starts
+const reset_window_rate = 1;			// Rate of 1/W to model the fact that after a temporal window of W seconds, suspicious count is reset
 
 formula cache_poisoned = correct_guess=true;	// Formula cache_poisoned is true if the AS guesses correctly (cache is poisoned).
 
@@ -38,7 +38,7 @@ module client_server // Victim Resolver
 
 	// -- Transitions
 	// 1) Receive request from client (IM or CM). 
-	[client_request_to_cs] clients_requests_queue< MAX_QUEUE_IN_CS & responses_queue< MAX_QUEUE_IN_CS & rs_queue< MAX_QUEUE_IN_CS ->
+	[client_request_to_cs] clients_requests_queue<MAX_QUEUE_IN_CS & responses_queue<MAX_QUEUE_IN_CS & rs_queue<MAX_QUEUE_IN_CS ->
 	// With rate "popularity", ttl gets value of 1, which means that the requested url exists in CS's cache. If the url is cached, then the queue of the answered queries (responses_queue) is increased by one, so that the server can answer back to the client.
 	(popularity/10) : (clients_requests_queue'=clients_requests_queue+1) & (ttl'=1) & (responses_queue'=responses_queue+1)
 	+
@@ -49,33 +49,36 @@ module client_server // Victim Resolver
 	[cs_request_to_rs] clients_requests_queue>0 & rs_queue>0 ->(query_root_server'=true);
 
 	// 3) When RS replies, the answer has to be forwarded to DS. The RS queue has to be reduced by one and the DS queue is increased by one.
-	[rs_response_to_cs] rs_queue>0 & ds_queue< MAX_QUEUE_IN_CS -> (rs_queue'=rs_queue-1) & (ds_queue'=ds_queue+1) & (query_root_server'=false);
+	[rs_response_to_cs] rs_queue>0 & ds_queue<MAX_QUEUE_IN_CS -> (rs_queue'=rs_queue-1) & (ds_queue'=ds_queue+1) & (query_root_server'=false);
 
 	// 4) Query is issued to the DS 
 	[cs_request_to_ds] ds_queue>0 -> (query_domain_server'=true);
 	
 	// 5) When DS replies, an answer has to be forwarded to a client and the DS queue has to be reduced by one.
-	[ds_response_to_cs] ds_queue>0 & responses_queue< MAX_QUEUE_IN_CS & correct_guess=false & suspicious_count < threshold-> 
-	(ds_queue'=ds_queue-1) & (responses_queue'=responses_queue+1) & (query_domain_server'=false) & (answer_from_domain_received'=true) 
-	& (suspicious_count'=suspicious_count+1);
+	[ds_response_to_cs] ds_queue>0 & responses_queue<MAX_QUEUE_IN_CS & correct_guess=false -> 
+	(ds_queue'=ds_queue-1) & (responses_queue'=responses_queue+1) & (query_domain_server'=false) & (answer_from_domain_received'=true);
 
 	// 6) Reply to client, and remove the query from the queue of queries received from clients, as well as from the queries answered queue too.
 	[cs_response_to_client] responses_queue>0 & clients_requests_queue>0 -> (clients_requests_queue'=clients_requests_queue-1) & (responses_queue'=responses_queue-1);
 
 	// 7) Receive a guess from AS.
-	[Guess] correct_guess=false & query_domain_server=true & mitigation_active=false & suspicious_count < threshold-> 
+	[Guess] correct_guess=false & query_domain_server=true & mitigation_active=false & suspicious_count<threshold-> 
 	// With rate 1/(query_id*port_id) a correct guess will arrive to the CS. Total Rate = (1/query_id*port_id) * (guess).
 	1/(number_of_query_ids*number_of_port_ids) : (correct_guess'=true)
 	+
 	// With rate query_id*port_id-1 a false guess arrives at the CS. Total Rate = (query_id*port_id-1) * (guess).
 	(number_of_query_ids*number_of_port_ids-1)/(number_of_query_ids*number_of_port_ids) : (correct_guess'=false) 
-	& (suspicious_count' = suspicious_count+1);
+	& (suspicious_count'=suspicious_count+1);
 
 	// If the cache poisong attack is successful, then a final state for the model is reached.
 	[] cache_poisoned=true -> true;
 
 	// If threshold suspicious packets arrived, mitigation is activated
-	[] suspicious_count>=threshold -> (mitigation_active'=true);	
+	[Activate_Mitigation] suspicious_count=threshold -> (mitigation_active'=true);	
+
+	// Reset of suspicious count according to Reset Window Rate
+	//[] suspicious_count>0 & mitigation_active=false -> reset_window_rate : (suspicious_count'=0);
+	
 endmodule
 
 module root_server
