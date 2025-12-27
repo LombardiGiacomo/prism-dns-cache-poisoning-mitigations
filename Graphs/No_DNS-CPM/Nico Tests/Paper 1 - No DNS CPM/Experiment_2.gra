@@ -4,7 +4,7 @@
     <layout/>
     <axis autoscale="true" heading="other_legitimate_requests_rate" headingFontColourB="0" headingFontColourG="0" headingFontColourR="0" headingFontName="SansSerif" headingFontSize="12" headingFontStyle="0" logBase="10.0" logStyle="1" logarithmic="false" majorColourB="204" majorColourG="204" majorColourR="204" majorGridInterval="0.2" maxValue="1.0" maximumPower="1.0" minValue="0.0" minimumPower="0.0" numberFontColourB="0" numberFontColourG="0" numberFontColourR="0" numberFontName="SansSerif" numberFontSize="12" numberFontStyle="0" showMajor="true"/>
     <axis autoscale="true" heading="Probability" headingFontColourB="0" headingFontColourG="0" headingFontColourR="0" headingFontName="SansSerif" headingFontSize="12" headingFontStyle="0" logBase="10.0" logStyle="1" logarithmic="false" majorColourB="204" majorColourG="204" majorColourR="204" majorGridInterval="0.2" maxValue="1.0" maximumPower="1.0" minValue="0.0" minimumPower="0.0" numberFontColourB="0" numberFontColourG="0" numberFontColourR="0" numberFontName="SansSerif" numberFontSize="12" numberFontStyle="0" showMajor="true"/>
-    <graph lineStyle="normal" lineWidth="1.0" seriesColourB="255" seriesColourG="0" seriesColourR="0" seriesHeading="MAX_URL_DNS_REQUESTS = 2" seriesShape="circle" showLines="true" showPoints="true">
+    <graph lineStyle="normal" lineWidth="1.0" seriesColourB="255" seriesColourG="0" seriesColourR="0" seriesHeading="NUMBER_OF_URL_REQUESTS = 2" seriesShape="circle" showLines="true" showPoints="true">
         <point x="10.0" y="0.012077913246848747"/>
         <point x="20.0" y="0.02390256623554643"/>
         <point x="30.0" y="0.03548121911680449"/>
@@ -36,7 +36,7 @@
         <point x="290.0" y="0.26886346843340286"/>
         <point x="300.0" y="0.27580187414068386"/>
     </graph>
-    <graph lineStyle="normal" lineWidth="1.0" seriesColourB="0" seriesColourG="127" seriesColourR="0" seriesHeading="MAX_URL_DNS_REQUESTS = 6" seriesShape="square" showLines="true" showPoints="true">
+    <graph lineStyle="normal" lineWidth="1.0" seriesColourB="0" seriesColourG="127" seriesColourR="0" seriesHeading="NUMBER_OF_URL_REQUESTS = 6" seriesShape="square" showLines="true" showPoints="true">
         <point x="10.0" y="0.035797873652882214"/>
         <point x="20.0" y="0.07000735700576115"/>
         <point x="30.0" y="0.10271157452711434"/>

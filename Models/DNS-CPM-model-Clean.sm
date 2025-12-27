@@ -1,53 +1,48 @@
 ctmc
 
 // --- CONSTANTS ---
-
 // Configuration
-const int MAX_URL_DNS_REQUESTS;
-const int MAX_QUEUE = MAX_URL_DNS_REQUESTS + 1;
+const int NUMBER_OF_URL_REQUESTS;
+const int MAX_QUEUE = NUMBER_OF_URL_REQUESTS + 1;
 
 // DNS Parameters
-const double popularity; // Probability factor (0-10)
+const double popularity; // Resource Records maintenance in Resolver's cache: (no ttl = 0.0), (low ttl 1.0) up to (high ttl = 1000.0)
 const int query_id_range = 65536;
 const int port_id_range;
-const double N = query_id_range * port_id_range;
 
 // Rates
-const double guess; // Intruder guessing rate (undefined, set in experiment)
+const double guess;
 const double requests_rate = 1.0;
 const double other_legitimate_requests_rate;
 
 // --- DNS-CPM PARAMETERS ---
-// Threshold (tau) = 5 packets (Source: Section 5 )
-const int tau;
-// Window reset rate (1/W where W=1s)
-const double window_rate = 1.0;
+const int tau = 5; // Count-Min Sketch Threshold: after 5 packets we activate the mitigation mechanism (UDP to TCP).
+const double cms_error_rate = 0.01; // CMS Error/Collision Rate (epsilon = e/w): Possibility of the hashes of DNS URL Responses colliding. 
+const double benign_noise_rate; // network traffic arriving to resolver: (low = 1.0) up to (high = 1000.0)
 
 // --- FORMULAS ---
-formula cache_poisoned = correct_guess = true;
+formula tc_flag_active = (detection_signal = true); // Mitigation Defense
+formula cache_poisoned = (correct_guess = true); // Attack Status
 
 
-// --- MODULE 1: INTRUDER CLIENT (The User) ---
-module intruder_client
+module intruder_machine
 	// -- States
-	trials : [0..MAX_URL_DNS_REQUESTS] init 0;
-	resolver_replies : [0..MAX_URL_DNS_REQUESTS] init 0;
+	trials : [0..NUMBER_OF_URL_REQUESTS] init 0;
+	resolver_replies : [0..NUMBER_OF_URL_REQUESTS] init 0;
 
 	// -- Transitions
-
 	// 1. Send Request: Initiates resolution.
-	[DNS_Request_Client_To_Resolver] trials < MAX_URL_DNS_REQUESTS -> requests_rate : (trials' = trials + 1);
+	[DNS_Request_Client_To_Resolver] trials < NUMBER_OF_URL_REQUESTS -> requests_rate : (trials' = trials + 1);
 
 	// 2. Receive Reply: Marks end of query cycle.
 	[DNS_Response_Resolver_To_Client] resolver_replies < trials -> (resolver_replies' = resolver_replies + 1);
 
 	// 3. Termination
-	[] resolver_replies = MAX_URL_DNS_REQUESTS -> true;
+	[] resolver_replies = NUMBER_OF_URL_REQUESTS -> true;
 endmodule
 
 
-// --- MODULE 2: VICTIM RESOLVER (The Server under Attack) ---
-module client_server
+module victim_resolver
 	// -- States
 	ttl : [0..2] init 2; // 0=Miss, 1=Hit, 2=Init
 	client_queue : [0..MAX_QUEUE] init 0;
@@ -62,7 +57,6 @@ module client_server
 	correct_guess: bool init false;
 
 	// -- Transitions
-
 	// 1. Client Request (Merged Hit/Miss Logic)
 	[DNS_Request_Client_To_Resolver] (client_queue < MAX_QUEUE) & (responses_queue < MAX_QUEUE) & (root_queue < MAX_QUEUE) -> 
 		// Branch 1: Cache Hit
@@ -90,136 +84,84 @@ module client_server
 	[DNS_Response_Resolver_To_Client] (responses_queue > 0) & (client_queue > 0) -> (client_queue' = client_queue - 1) & (responses_queue' = responses_queue - 1);
 	
 
-	// --- ATTACK VECTOR ---
-    	// The resolver receives the packet. 
-    	// It checks 'tc_flag_active' from the Mitigation Module.
-    
-    	[Guess] (correct_guess = false) & (query_to_domain_server = true) -> 
-        	// CASE A: Mitigation is OFF (tc_flag_active = false).
-        	// The packet is standard UDP. Poisoning is possible if mathematically correct.
-        	(1 - (tc_flag_active ? 1 : 0)) * (1/N) : (correct_guess' = true)
-        	+
-        	// CASE B: Mitigation is ON (tc_flag_active = true).
-        	// The packet is Truncated (TC=1). The resolver drops the data and switches to TCP.
-        	// Poisoning is IMPOSSIBLE (Probability 0).
-        	// This transition also covers the "Math Incorrect" case.
-        	(1 - (1 - (tc_flag_active ? 1 : 0)) * (1/N)) : (correct_guess' = false);
-        
-    		// Note: The logic above simplifies the probability:
-    		// If Mitigation is ON: P(success) = 0.
-    		// If Mitigation is OFF: P(success) = 1/N.
+	// -- Attack Race Condition
+    	[Guess] (correct_guess = false) & (query_to_domain_server = true) & (tc_flag_active = false) -> 
+		1 / (query_id_range * port_id_range) : (correct_guess'=true)
+		+
+		((query_id_range * port_id_range) - 1) / (query_id_range * port_id_range): (correct_guess'=false);
 
-    	// Sink State
+    	// -- Sink State
 	[] cache_poisoned = true -> true;
 endmodule
 
 
-// --- MODULE 4: ROOT SERVER ---
 module root_server
+	// -- States
 	root_state : [0..1] init 0;
-
+	
+	// -- Transitions
+	// 1. Receive Request: A query arrives from the Victim Resolver.
 	[DNS_Request_Resolver_To_Root] root_state = 0 -> (root_state' = 1);
+
+	// 2. Send Reply: The Root Server immediately responds, moving the resolver to the next step (Domain Server).
 	[DNS_Response_Root_To_Resolver] root_state = 1 -> (root_state' = 0);
 endmodule
 
 
-// --- MODULE 5: TARGET DOMAIN SERVER ---
 module target_domain_server
 	// -- States
 	domain_state : [0..1] init 0;
 
 	// -- Transitions
-	
 	// 1. Receive Request: Opens Race Window
 	[DNS_Request_Resolver_To_Domain] domain_state = 0 -> (domain_state' = 1);
 
 	// 2. Legitimate Response: Closes Race Window
-	[DNS_Response_Domain_To_Resolver] domain_state = 1 -> 1/(other_legitimate_requests_rate) : (domain_state' = 0);
+	[DNS_Response_Domain_To_Resolver] domain_state = 1 -> 1 / (other_legitimate_requests_rate) : (domain_state' = 0);
 
 	// 3. Busy Work ("Noise")
-	//[DNS_Response_Domain_Other_Request] domain_state = 1 -> (other_legitimate_requests_rate - 1)/other_legitimate_requests_rate : (domain_state' = 1);
-	[DNS_Response_Domain_Other_Request] domain_state = 1 & other_legitimate_requests_rate > 1 
-		-> (other_legitimate_requests_rate - 1)/other_legitimate_requests_rate : (domain_state' = 1);
+	[DNS_Response_Domain_Other_Request] domain_state = 1 -> (other_legitimate_requests_rate - 1) / other_legitimate_requests_rate : (domain_state' = 1);
 endmodule
 
 
-// --- MODULE 6: INTRUDER SERVER (The Attacker) ---
 module intruder_server
 	// -- States
-	state_IS : [0..1] init 0;
+	is_state : [0..1] init 0;
 	
 	// -- Transitions
+	// 1. Start the attack
+	[DNS_Request_Resolver_To_Domain] is_state = 0 -> (is_state' = 1);
 
-	// 1. Start Attack: Triggered when Victim queries Domain.
-	[DNS_Request_Resolver_To_Domain] state_IS = 0 -> (state_IS' = 1);
+	// 2. Firing Loop
+	[Guess] is_state = 1 -> guess : (is_state' = 1);
 
-	// 2. Firing Loop: Fires guesses at rate 'guess'.
-	// Synchronizes with Victim (to check success) and Defense (to increment count).
-	[Guess] state_IS = 1  & guess > 0 -> guess : (state_IS' = 1);
-
-	// 3. Stop Attack: Triggered when Victim receives legitimate answer.
-	[DNS_Response_Domain_To_Resolver] state_IS = 1 -> (state_IS' = 0);
+	// 3. Stop the attack
+	[DNS_Response_Domain_To_Resolver] is_state = 1 -> (is_state' = 0);
 endmodule
 
-// --- MODULE 7: BENIGN TRAFFIC GENERATOR (The "Noise") ---
-// Simulates legitimate queries from other users. Triggers False Positives in the detector.
-module benign_traffic_generator
-	// -- States
-	benign_state : [0..1] init 0;
-
-	// Generate a benign packet event
-	[Benign_Response] true -> other_legitimate_requests_rate : (benign_state' = 1 - benign_state);
-endmodule
-
-// DNS-CPM Modules
-
-module defense_detection
-    // Abstracted Count-Min Sketch counter
-    suspicious_count : [0..tau] init 0;
+module dns_cpm_module
+    	// Count-Min Sketch counter
+    	suspicious_count : [0..tau] init 0;
     
-    // Signal to the Mitigation Module (True if threshold reached)
-    detection_signal : bool init false;
+    	// Signal to the Mitigation Module (True if threshold reached)
+    	detection_signal : bool init false;
 
-    // 1. DETECT ATTACKER: Synchronize with Intruder's Guess
-    // Increment counter. If we hit tau, signal detection.
-    [Guess] true -> 
-        (suspicious_count' = min(suspicious_count + 1, tau)) & 
-        (detection_signal' = (suspicious_count + 1 >= tau));
+    	// 1. Detection of a Possible Attack
+    	[Guess] suspicious_count < tau -> 
+    	    (suspicious_count' = suspicious_count + 1) & 
+    	    (detection_signal' = (suspicious_count + 1 >= tau));
 
-    // 2. DETECT BENIGN (NOISE): Synchronize with Legitimate Responses
-    // In a real network, benign traffic also increments the CMS counters[cite: 447].
-    // This allows us to model False Positives (blocking legitimate traffic).
-    [Benign_Response] true -> 
-        (suspicious_count' = min(suspicious_count + 1, tau)) & 
-        (detection_signal' = (suspicious_count + 1 >= tau));
+    	// 2. Detection of Benign Noise: Normal traffic towards the victim resolver. If a hash collision occurs, increment counter.
+    	[Benign_Response] suspicious_count < tau -> 
+    		// Case 1: Collision occurs
+    		cms_error_rate * ((benign_noise_rate - 1) / benign_noise_rate) : 
+			(suspicious_count' = suspicious_count + 1) & (detection_signal' = (suspicious_count + 1 >= tau))
+    		+
+    		// Case 2: No Collision
+    		(1 - cms_error_rate) * (1 / benign_noise_rate): (suspicious_count' = suspicious_count) & (detection_signal' = detection_signal);
 
-    // 3. RESET WINDOW: Sliding window mechanism [cite: 418]
-    // Resets the CMS counter periodically.
-    [Reset_Window] suspicious_count > 0 -> 
-        window_rate : (suspicious_count' = 0) & (detection_signal' = false);
+   	// 3. Detection of a Legitimate Domain Response: Counts towards the threshold (Same Domain)
+	[DNS_Response_Domain_To_Resolver] suspicious_count < tau -> 
+    		(suspicious_count' = suspicious_count + 1) & 
+    		(detection_signal' = (suspicious_count + 1 >= tau));
 endmodule
-
-module defense_mitigation
-    // The state of the packet being forwarded to the resolver.
-    // false = Normal UDP (Vulnerable), true = Truncated/TCP (Safe)
-    tc_flag_active : bool init false;
-
-    // The mitigation module constantly monitors the detection signal.
-    // In PRISM, we update this status immediately.
-    [] tc_flag_active != detection_signal -> (tc_flag_active' = detection_signal);
-endmodule
-
-
-// --- REWARDS ---
-
-rewards "time"
-	true : 1;
-endrewards
-
-rewards "guesses_sent"
-	[Guess] true : 1;
-endrewards
-
-rewards "resets"
-	[Reset_Window] true : 1; 
-endrewards

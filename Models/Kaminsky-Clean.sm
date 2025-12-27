@@ -1,38 +1,41 @@
 ctmc
 
-// Global Constants
-const MAX_QUEUE = MAX_URL_DNS_REQUESTS + 1;
-const MAX_URL_DNS_REQUESTS;
+// --- CONSTANTS ---
+// Configuration
+const NUMBER_OF_URL_REQUESTS;
+const MAX_QUEUE = NUMBER_OF_URL_REQUESTS + 1;
+
+// DNS Parameters
 const double popularity;
 const query_id_range = 65536;
 const port_id_range;
-const N = query_id_range * port_id_range;
+
+// Rates
 const guess;
 const double requests_rate = 1;
 const other_legitimate_requests_rate;
-formula cache_poisoned = correct_guess = true;
 
+// --- FORMULAS ---
+formula cache_poisoned = (correct_guess = true);
 
-module intruder_client
+// --- MODULES ---
+module intruder_machine
 	// -- States
-	trials : [0..MAX_URL_DNS_REQUESTS] init 0;
-	resolver_replies : [0..MAX_URL_DNS_REQUESTS] init 0;
+	trials : [0..NUMBER_OF_URL_REQUESTS] init 0;
+	resolver_replies : [0..NUMBER_OF_URL_REQUESTS] init 0;
 
 	// -- Transitions
+	// 1. Send Request: Initiates resolution.
+	[DNS_Request_Client_To_Resolver] trials < NUMBER_OF_URL_REQUESTS -> requests_rate : (trials' = trials + 1);
 
-	// 1. Send Request: The Intruder initiates the resolution for a specific domain.
-    	// This increments the 'trials' counter.
-	[DNS_Request_Client_To_Resolver] trials < MAX_URL_DNS_REQUESTS -> requests_rate : (trials' = trials + 1);
-
-	// 2. Receive Reply: The resolver (victim) sends an answer back.
-    	// This marks the end of one specific query cycle.
+	// 2. Receive Reply: Marks end of query cycle.
 	[DNS_Response_Resolver_To_Client] resolver_replies < trials -> (resolver_replies' = resolver_replies + 1);
 
-	// 3. Termination: When all planned requests are finished, the module enters a final idle loop.
-	[] resolver_replies = MAX_URL_DNS_REQUESTS -> true;
+	// 3. Termination
+	[] resolver_replies = NUMBER_OF_URL_REQUESTS -> true;
 endmodule
 
-module client_server 
+module victim_resolver 
 	// -- States
 	ttl : [0..2] init 2;
 	client_queue : [0.. MAX_QUEUE] init 0;
@@ -47,13 +50,12 @@ module client_server
 	correct_guess: bool init false;
 
 	// -- Transitions
-
 	// 1. Client Request (Merged Hit/Miss Logic)
 	[DNS_Request_Client_To_Resolver] (client_queue < MAX_QUEUE) & (responses_queue < MAX_QUEUE) & (root_queue < MAX_QUEUE) -> 
-    		// Branch 1: Cache Hit (Probability: popularity/10)
+    		// Branch 1: Cache Hit
     		(popularity / 10) : (client_queue' = client_queue + 1) & (ttl' = 1) & (responses_queue' = responses_queue + 1)
     		+
-    		// Branch 2: Cache Miss (Probability: 1 - popularity/10)
+    		// Branch 2: Cache Miss
     		(1 - (popularity / 10)) : (client_queue' = client_queue + 1) & (ttl' = 0) & (root_queue' = root_queue + 1);
 	
 	// 2. Query Root
@@ -78,11 +80,9 @@ module client_server
 
 	// --- Race Condition (Attack) ---
 	[Guess] (correct_guess = false) & (query_to_domain_server = true) -> 
-        	// Branch 1: The guess matches (Probability 1/N)
-        	1 / N : (correct_guess' = true) 
-        	+
-        	// Branch 2: The guess is wrong (Probability (N-1)/N)
-        	(N - 1) / N : (correct_guess' = false);
+        	1 / (query_id_range * port_id_range) : (correct_guess'=true)
+		+
+		((query_id_range * port_id_range) - 1) / (query_id_range * port_id_range): (correct_guess'=false);
 	
 	// Sink State
 	[] cache_poisoned = true -> true;
@@ -104,12 +104,8 @@ endmodule
 module target_domain_server
 	// -- States
 	domain_state : [0..1] init 0;
-
-	// -- Variables
-	denial_of_service : bool init false;
 	
 	// -- Transitions
-
 	// 1. Receive Request: The Victim Resolver asks "Where is example.com?".
     	// This opens the 'Race Window'. The Intruder starts guessing NOW.
 	[DNS_Request_Resolver_To_Domain] domain_state = 0 -> (domain_state' = 1);
@@ -127,20 +123,19 @@ endmodule
 
 module intruder_server
 	// -- States
-	state_IS : [0..1] init 0;
+	is_state : [0..1] init 0;
 	
 	// -- Transitions
-
 	// 1. Start Attack: Triggered when the Victim Resolver queries the Domain Server.
     	// The 'Race Window' is now open.
-	[DNS_Request_Resolver_To_Domain] state_IS = 0 -> (state_IS' = 1);
+	[DNS_Request_Resolver_To_Domain] is_state = 0 -> (is_state' = 1);
 
 	// 2. Firing Loop (The "Machine Gun"):
     	// Fires guesses at rate 'guess'.
     	// The success/failure logic is handled by the Victim Resolver module via probabilistic split.
-	[Guess] state_IS=1 -> guess : (state_IS'=1);
+	[Guess] is_state = 1 -> guess : (is_state' = 1);
 
 	// 3. Stop Attack: Triggered when the Victim Resolver receives the legitimate answer.
     	// The 'Race Window' is closed. The attack failed for this specific query.
-	[DNS_Response_Domain_To_Resolver] state_IS = 1 -> (state_IS' = 0);
+	[DNS_Response_Domain_To_Resolver] is_state = 1 -> (is_state' = 0);
 endmodule

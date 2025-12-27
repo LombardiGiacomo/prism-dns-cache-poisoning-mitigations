@@ -1,10 +1,10 @@
-// Defense Activation Probability: What is the probability that the defense mechanism triggers, aka enter mitgation mode?
-P=? [ F mitigation_active ]
-
-// Legitimate Resolution: What is the probability that the legitimate domain name server answers successfully?
-P=? [ F answer_from_domain_received ]
-
 // Attack Success Rate (ASR): what is the maximum probability that the cache is successfully poisoned? 
 // We check if poisoning happens.
 P=? [ F cache_poisoned ]
+
+// Defense Activation Probability: What is the probability that the defense mechanism triggers, aka enter mitgation mode?
+P=? [ F tc_flag_active ]
+
+// Legitimate Resolution: What is the probability that the legitimate domain name server answers successfully?
+P=? [ F answer_from_domain_received ]
 
