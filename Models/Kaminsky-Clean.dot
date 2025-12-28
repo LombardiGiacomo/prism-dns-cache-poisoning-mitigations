@@ -1,0 +1,28 @@
+digraph R {
+node [shape=box];
+0 -> 5 [ label="0.9:DNS_Request_Client_To_Resolver" ];
+0 -> 7 [ label="0.1:DNS_Request_Client_To_Resolver" ];
+1 -> 8 [ label="1:DNS_Response_Resolver_To_Client" ];
+2 -> 3 [ label="1:DNS_Request_Resolver_To_Domain" ];
+3 -> 1 [ label="0.006666666666666667:DNS_Response_Domain_To_Resolver" ];
+3 -> 3 [ label="299.9954223632812:Guess" ];
+3 -> 4 [ label="0.00457763671875:Guess" ];
+3 -> 3 [ label="0.9933333333333333:DNS_Response_Domain_Other_Request" ];
+4 -> 4 [ label="1" ];
+4 -> 4 [ label="0.9933333333333333:DNS_Response_Domain_Other_Request" ];
+5 -> 6 [ label="1:DNS_Request_Resolver_To_Root" ];
+6 -> 2 [ label="1:DNS_Response_Root_To_Resolver" ];
+7 -> 9 [ label="1:DNS_Response_Resolver_To_Client" ];
+8 -> 8 [ label="1" ];
+9 -> 9 [ label="1" ];
+0 [label="0\n(0,0,2,0,0,0,0,false,false,false,false,0,0,0)"];
+1 [label="1\n(1,0,0,1,0,0,1,false,false,true,false,0,0,0)"];
+2 [label="2\n(1,0,0,1,0,1,0,false,false,false,false,0,0,0)"];
+3 [label="3\n(1,0,0,1,0,1,0,false,true,false,false,0,1,1)"];
+4 [label="4\n(1,0,0,1,0,1,0,false,true,false,true,0,1,1)"];
+5 [label="5\n(1,0,0,1,1,0,0,false,false,false,false,0,0,0)"];
+6 [label="6\n(1,0,0,1,1,0,0,true,false,false,false,1,0,0)"];
+7 [label="7\n(1,0,1,1,0,0,1,false,false,false,false,0,0,0)"];
+8 [label="8\n(1,1,0,0,0,0,0,false,false,true,false,0,0,0)"];
+9 [label="9\n(1,1,1,0,0,0,0,false,false,false,false,0,0,0)"];
+}

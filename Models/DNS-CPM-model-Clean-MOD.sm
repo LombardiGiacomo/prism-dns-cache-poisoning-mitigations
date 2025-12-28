@@ -54,16 +54,16 @@ module victim_resolver
 	query_to_root_server: bool init false;
 	query_to_domain_server: bool init false;
 	answer_from_domain_received: bool init false;
-	correct_guess: bool init false;
+	correct_guess: bool init false; 
 
 	// -- Transitions
 	// 1. Client Request (Merged Hit/Miss Logic)
 	[DNS_Request_Client_To_Resolver] (client_queue < MAX_QUEUE) & (responses_queue < MAX_QUEUE) & (root_queue < MAX_QUEUE) -> 
 		// Branch 1: Cache Hit
-		(popularity / 10) : (client_queue' = client_queue + 1) & (ttl' = 1) & (responses_queue' = responses_queue + 1)
+		popularity : (client_queue' = client_queue + 1) & (ttl' = 1) & (responses_queue' = responses_queue + 1)
 		+
 		// Branch 2: Cache Miss
-		(1 - (popularity / 10)) : (client_queue' = client_queue + 1) & (ttl' = 0) & (root_queue' = root_queue + 1);
+		(10 - popularity) : (client_queue' = client_queue + 1) & (ttl' = 0) & (root_queue' = root_queue + 1);
 	
 	// 2. Query Root
 	[DNS_Request_Resolver_To_Root] (client_queue > 0) & (root_queue > 0) 
@@ -148,17 +148,17 @@ module dns_cpm_module
 
     	// 1. Detection of a Possible Attack
     	[Guess] suspicious_count < tau -> 
-    	    	(suspicious_count' = suspicious_count + 1) & 
-    	        (detection_signal' = (suspicious_count + 1 >= tau));
+    	    (suspicious_count' = suspicious_count + 1) & 
+    	    (detection_signal' = (suspicious_count + 1 >= tau));
 
     	// 2. Detection of Benign Noise: Normal traffic towards the victim resolver. If a hash collision occurs, increment counter.
-    	[Benign_Response] suspicious_count < tau  -> 
+    	[Benign_Response] suspicious_count < tau -> 
     		// Case 1: Collision occurs
     		cms_error_rate * ((benign_noise_rate - 1) / benign_noise_rate) : 
-			(suspicious_count' = suspicious_count + 1) & (detection_signal' = (suspicious_count + 1 >= tau));
-    		//+
+			(suspicious_count' = suspicious_count + 1) & (detection_signal' = (suspicious_count + 1 >= tau))
+    		+
     		// Case 2: No Collision
-    		//(1 - cms_error_rate) * (1 / benign_noise_rate): (suspicious_count' = suspicious_count) & (detection_signal' = detection_signal);
+    		(1 - cms_error_rate) * (1 / benign_noise_rate): (suspicious_count' = suspicious_count) & (detection_signal' = detection_signal);
 
    	// 3. Detection of a Legitimate Domain Response: Counts towards the threshold (Same Domain)
 	[DNS_Response_Domain_To_Resolver] suspicious_count < tau -> 
