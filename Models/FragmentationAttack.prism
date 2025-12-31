@@ -1,0 +1,138 @@
+ctmc
+
+// --- CONSTANTS ---
+// Configuration
+const int NUMBER_OF_URL_REQUESTS;
+const int MAX_QUEUE = NUMBER_OF_URL_REQUESTS + 1;
+
+// DNS Parameters
+const double popularity;
+const int ipid_range = 65536;
+
+// Rates
+const double guess;
+const double requests_rate = 1.0;
+const double other_legitimate_requests_rate;
+
+// --- FORMULAS ---
+formula cache_poisoned = (correct_guess = true & first_fragment_arrived = true) ; // Attack Status
+
+// Tutte le richieste fatte dall'attaccante sono tali da avere risposte con dimensione che non rientra nella MTU --> devono essere frammentate
+module intruder_machine
+	trials : [0..NUMBER_OF_URL_REQUESTS] init 0;
+	resolver_replies : [0..NUMBER_OF_URL_REQUESTS] init 0;
+
+	// -- Transitions
+	// 1. Send Request: Initiates resolution.
+	[DNS_Request_Client_To_Resolver] trials < NUMBER_OF_URL_REQUESTS -> requests_rate : (trials' = trials + 1);
+
+	// 2. Receive Reply: Marks end of query cycle.
+	[DNS_Response_Resolver_To_Client] resolver_replies < trials -> (resolver_replies' = resolver_replies + 1);
+
+	// 3. Termination
+	[] resolver_replies = NUMBER_OF_URL_REQUESTS -> true;
+endmodule
+
+
+module victim_resolver
+	ttl : [0..2] init 2; // 0=Miss, 1=Hit, 2=Init
+	client_queue : [0..MAX_QUEUE] init 0;
+	root_queue : [0..MAX_QUEUE] init 0;
+	domain_queue : [0..MAX_QUEUE] init 0;
+	responses_queue : [0..MAX_QUEUE] init 0;
+	first_fragment_arrived : bool init false;
+	second_fragment_arrived : bool init false;
+
+	// -- Variables
+	query_to_root_server: bool init false;
+	query_to_domain_server: bool init false;
+	answer_from_domain_received: bool init false;
+	correct_guess: bool init false;
+
+	// -- Transitions
+	// 1. Client Request (Merged Hit/Miss Logic)
+	[DNS_Request_Client_To_Resolver] (client_queue < MAX_QUEUE) & (responses_queue < MAX_QUEUE) & (root_queue < MAX_QUEUE) -> 
+		// Branch 1: Cache Hit
+		(popularity / 10) : (client_queue' = client_queue + 1) & (ttl' = 1) & (responses_queue' = responses_queue + 1)
+		+
+		// Branch 2: Cache Miss
+		(1 - (popularity / 10)) : (client_queue' = client_queue + 1) & (ttl' = 0) & (root_queue' = root_queue + 1);
+	
+	// 2. Query Root
+	[DNS_Request_Resolver_To_Root] (client_queue > 0) & (root_queue > 0) 
+		-> (query_to_root_server' = true);
+
+	// 3. Root Responds -> Move to Domain Queue
+	[DNS_Response_Root_To_Resolver] (root_queue > 0) & (domain_queue < MAX_QUEUE)
+		-> (root_queue' = root_queue - 1) & (domain_queue' = domain_queue + 1) & (query_to_root_server' = false);
+
+	// 4. Query Domain (Opens Vulnerability Window)
+	[DNS_Request_Resolver_To_Domain] domain_queue > 0 -> (query_to_domain_server' = true);
+
+	// 5. Domain Responds with first fragment
+	[DNS_Response_Domain_To_Resolver_Frag1] (domain_queue > 0) -> (first_fragment_arrived' = true);
+
+	// 6. Domain Responds with second fragment (Closes Window)
+	[DNS_Response_Domain_To_Resolver_Frag2] (responses_queue < MAX_QUEUE) & (domain_queue > 0) & (correct_guess = false) 
+		-> (domain_queue' = domain_queue - 1) & (responses_queue' = responses_queue + 1) & (query_to_domain_server' = false)  
+			& (answer_from_domain_received' = true) & (second_fragment_arrived' = true);
+			
+	// 7. Reply to Client
+	[DNS_Response_Resolver_To_Client] (responses_queue > 0) & (client_queue > 0) -> (client_queue' = client_queue - 1) & (responses_queue' = responses_queue - 1)
+		& (first_fragment_arrived' = false) & (second_fragment_arrived' = false);
+	
+	// -- Attack Race Condition
+    	[Second_Fragment_Guess] (correct_guess = false) & (second_fragment_arrived = false) -> 
+		1 / (ipid_range) : (correct_guess'=true)
+		+
+		((ipid_range - 1) / (ipid_range)) : (correct_guess'=false);
+
+    	// -- Sink State
+	[] cache_poisoned = true -> true;
+endmodule
+
+
+module root_server
+	root_state : [0..1] init 0;
+	
+	// -- Transitions
+	// 1. Receive Request: A query arrives from the Victim Resolver.
+	[DNS_Request_Resolver_To_Root] root_state = 0 -> (root_state' = 1);
+
+	// 2. Send Reply: The Root Server immediately responds, moving the resolver to the next step (Domain Server).
+	[DNS_Response_Root_To_Resolver] root_state = 1 -> (root_state' = 0);
+endmodule
+
+
+module target_domain_server
+	// -- States
+	domain_state : [0..2] init 0;
+
+	// -- Transitions
+	// 1. Receive Request: Opens Race Window
+	[DNS_Request_Resolver_To_Domain] domain_state = 0 -> (domain_state' = 1);
+
+	// 2. Legitimate Response: Closes Race Window
+	[DNS_Response_Domain_To_Resolver_Frag1] domain_state = 1 -> 1 / (other_legitimate_requests_rate) : (domain_state' = 2);
+
+	[DNS_Response_Domain_To_Resolver_Frag2]	domain_state = 2 -> 1 / (other_legitimate_requests_rate) : (domain_state' = 0);
+
+	// 3. Busy Work ("Noise")
+	[DNS_Response_Domain_Other_Request] domain_state = 1 | domain_state = 2 -> 
+		(other_legitimate_requests_rate - 1) / other_legitimate_requests_rate : (domain_state' = domain_state);
+endmodule
+
+
+module intruder_server
+	is_state : [0..1] init 0;
+	
+	// -- Transitions
+	// 1. Start the attack
+	[DNS_Request_Client_To_Resolver] is_state = 0 -> (is_state' = 1);
+
+	// 2. Firing Loop
+	[Second_Fragment_Guess] is_state = 1 -> guess : (is_state' = 1);
+
+	// 3. Stop the attack
+	[DNS_Response_Domain_To_Resolver_Frag2] is_state = 1 -> (is_state' = 0);
+endmodule
