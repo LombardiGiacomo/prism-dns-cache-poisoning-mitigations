@@ -1,4 +1,4 @@
-# CMCS-Project
+# Analysis of the DNS Cache-Poisoning Attack using PRISM Model Checker
 
 ## 📌 Project Overview
 This project presents a formal analysis of **DNS Cache-Poisoning Attacks** and the effectiveness of their mitigations. We utilized **PRISM** to model the behavior of the Domain Name System (DNS) and the race conditions inherent in these attacks using **Continuous Time Markov Chains (CTMC)**.
