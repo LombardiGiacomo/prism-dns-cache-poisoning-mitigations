@@ -36,7 +36,7 @@ This attack exploits IP packet fragmentation. The attacker forces the resolver t
 *   `/Models`: Contains the PRISM code for S-Type and S-Frag attacks, both with and without DNS-CPM mitigation.
 *   `/Properties`: Properties used to verify the models.
 *   `/Graphs`: Graphs and property verification results.
-*   `/Docs`: Presentation slides.
+*   `/Docs`: Reference papers and Presentation slides.
 
 ## 👥 Authors
 *   Giacomo Lombardi
