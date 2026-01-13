@@ -9,8 +9,8 @@ The study focuses on quantifying the probability of a successful cache poisoning
 We analyzed two primary types of attacks and their respective defense mechanisms:
 
 ### 1. Kaminsky Attack (S-Type)
-The attacker floods the resolver with forged responses, attempting to guess the correct combination of **Query ID** and **Port number** [5].
-*   **Standard Mitigation (Randomization):** We modeled the standard defense where the resolver randomizes both the Query ID (16 bits) and the Source Port (~11 bits).
+The attacker floods the resolver with forged responses, attempting to guess the correct combination of **Query ID** and **Port number**.
+*   **Standard Mitigation (Randomization):** We modeled the standard defense where the resolver randomizes both the Query ID (16 bits) and the Port number (16 bits).
 *   **DNS-CPM Mitigation (Rl1):** We modeled a detection module using the **Count-Min Sketch** algorithm to track suspicious responses and trigger mitigation.
 
 ### 2. Fragmentation Attack (SFrag-Type)
